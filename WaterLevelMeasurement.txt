@@ -1,0 +1,322 @@
+#include <ESP8266WiFi.h>
+
+#define TRIGGER 5
+
+#define ECHO    4
+
+String apiWritek = "3IN3QJ8LDWF4QM16";
+
+
+ 
+
+// replace with your THINGSPEAK WRITEAPI key here
+
+const char* ssid = "Jigar"; // your wifi SSID name
+
+const char* password = "tanna123"// wifi pasword
+
+
+
+
+const char* server = "api.thingspeak.com";
+
+float resolution=3.3/1023;// 3.3 is the supply volt  & 1023 is max analog read value
+
+long duration=0, distance=0;
+
+long final_dis=0, waterLevel=0;
+
+bool flag = true;
+
+int count = 1;
+
+WiFiClient client;
+
+
+
+
+void setup() {
+
+  Serial.begin(115200);
+
+  pinMode(TRIGGER, OUTPUT);
+
+  pinMode(ECHO, INPUT);
+
+  WiFi.disconnect();
+
+  delay(10);
+
+  WiFi.begin(ssid, password);
+
+
+
+
+  Serial.println();
+
+  Serial.println();
+
+  Serial.print("Connecting to ");
+
+  Serial.println(ssid);
+
+
+
+
+  WiFi.begin(ssid, password);
+
+
+
+
+  while (WiFi.status() != WL_CONNECTED) {
+
+    delay(500);
+
+    Serial.print(".");
+
+  }
+
+  Serial.println("");
+
+  Serial.print("NodeMcu connected to wifi...");
+
+  Serial.println(ssid);
+
+  Serial.println();
+
+}
+
+
+
+
+void loop() {
+
+  float temp = (analogRead(A0) * resolution) * 100;
+
+  digitalWrite(TRIGGER, LOW);  
+
+  delayMicroseconds(2);
+
+
+
+
+  digitalWrite(TRIGGER, HIGH);
+
+  delayMicroseconds(10);
+
+  digitalWrite(TRIGGER, LOW);
+
+  duration = pulseIn(ECHO, HIGH);
+
+  distance = duration*0.034/2;
+
+  if(flag==true)
+
+  {
+
+    if(count <= 10)
+
+    {
+
+      final_dis = (final_dis + distance);
+
+      count = count+1;
+
+    }
+
+    else
+
+    {
+
+      final_dis = (final_dis/10);
+
+      Serial.print("final distance: ");
+
+      Serial.println(final_dis);
+
+      flag = false;
+
+    }
+
+  }
+
+  else
+
+  {
+
+    waterLevel = (final_dis - distance);
+
+    if(waterLevel >= 0 )
+
+    {
+
+      Serial.print("WaterLevel: ");
+
+      Serial.println(waterLevel);
+
+      if (client.connect(server,80))
+
+      {  
+
+       float temp = (analogRead(A0) * resolution) * 100;
+
+       digitalWrite(TRIGGER, LOW);  
+
+       delayMicroseconds(2);
+
+
+
+
+      digitalWrite(TRIGGER, HIGH);
+
+      delayMicroseconds(10);
+
+      digitalWrite(TRIGGER, LOW);
+
+      duration = pulseIn(ECHO, HIGH);
+
+      distance = duration*0.034/2;
+
+      if(flag==true)
+
+      {
+
+        if(count <= 10)
+
+        {
+
+           final_dis = (final_dis + distance);
+
+           count = count+1;
+
+        }
+
+        else
+
+        {
+
+            final_dis = (final_dis/10);
+
+            flag = false;
+
+        }
+
+      }
+
+  else
+
+  {
+
+    int waterlevel = (final_dis - distance);
+
+    waterlevel = (analogRead(A0)*resolution)*100;
+
+    distance = (analogRead(A0)*resolution)*100;
+
+    String tsData = apiWritek;
+
+           tsData +="&field1=";
+
+           tsData += String(distance);
+
+           tsData += "\r\n\r\n";
+
+           client.print("POST /update HTTP/1.1\n");
+
+           client.print("Host: api.thingspeak.com\n");
+
+           client.print("Connection: close\n");
+
+           client.print("X-THINGSPEAKAPIKEY: "+apiWritek+"\n");
+
+           client.print("Content-Type: application/x-www-form-urlencoded\n");
+
+           client.print("Content-Length: ");
+
+           client.print(tsData.length());
+
+           //client.print(tsDat.length());
+
+           client.print("\n\n");  // the 2 carriage returns indicate closing of Header fields & starting of data
+
+           client.print(tsData);
+
+           //client.print(tsDat);
+
+    String tsDat = apiWritek;
+
+           tsDat +="&field2=";
+
+           tsDat += String(waterlevel);
+
+           tsDat += "\r\n\r\n";
+
+     client.print("POST /update HTTP/1.1\n");
+
+     client.print("Host: api.thingspeak.com\n");
+
+     client.print("Connection: close\n");
+
+     client.print("X-THINGSPEAKAPIKEY: "+apiWritek+"\n");
+
+     client.print("Content-Type: application/x-www-form-urlencoded\n");
+
+     client.print("Content-Length: ");
+
+     client.print(tsDat.length());
+
+     //client.print(tsDat.length());
+
+     client.print("\n\n");  // the 2 carriage returns indicate closing of Header fields & starting of data
+
+     client.print(tsDat);
+
+     client.print(waterlevel);
+
+     //client.print(tsDat);
+
+     
+
+
+
+
+     /*Serial.print("\nwaterlevel: ");
+
+     Serial.print(temp);*/
+
+     Serial.println("\nuploaded to Thingspeak server....");
+
+  }
+
+  }
+
+   
+
+    client.stop();
+
+
+
+
+    Serial.println("Waiting to upload next reading...");
+
+    Serial.println();
+
+    // thingspeak needs minimum 15 sec delay between updates
+
+    delay(1000);
+
+    }}  }
+
+
+
+
+
+
+ 
+
+   
+
+     
+
+
+ 
